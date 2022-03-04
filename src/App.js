@@ -1,49 +1,69 @@
 import './App.css';
 import {useEffect, useState, useCallback, memo} from "react";
 
-const Beer = ({price, name, image, id}) => {
-    const [hide, setHide] = useState(true)
-    return (<div className='beer'>
-        <img alt='beer' src={image && image}/>
-        <button onClick={() => setHide(prev => !prev)}>{hide ? '+' : '-'}</button>
-        {hide &&
-            <>
-                <div>{price && price}</div>
-                <div>{name && name}</div>
-            </>
-        }
-    </div>)
-}
+const Wine = memo(({winery, wine, average, reviews, image}) => {
+    console.log('rendered')
+    const numStars = parseInt(average[0])
+    return (
+        <div className='wine'>
+            <img src={image} alt='wine' height='100px' />
+            <div>wine name: {wine && wine}</div>
+            <div>winery: {winery && winery}</div>
+            <div>
+                <p>reviews:</p>
+                <div>{numStars !== null && '★'.repeat(numStars) }</div>
+                <div>{reviews && reviews}</div>
+            </div>
+        </div>
+    )
+})
 
 function App() {
-    const [beers, setBeers] = useState(null)
-    const [name, setName] = useState('')
-    const [price, setPrice] = useState('')
+    const [wines, setWines] = useState(null)
+    const [wineType, setWineType] = useState('reds')
+    const [nameSearch, setNameSearch] = useState('')
+    const fetchData = async (wineType) => {
+        let res = await fetch(`https://api.sampleapis.com/wines/${wineType}`)
+        res = await res.json()
+        setWines(res.slice(0,10))
+    }
     useEffect(() => {
-        const fetchData = async () => {
-            let res = await fetch('https://api.sampleapis.com/beers/ale')
-            res = await res.json()
-            setBeers(res)
-        }
-        fetchData().catch(e => console.error(e))
-    }, []);
-    const filterBeers = (data, text) => {
-        return data.filter(item => {
-            return item?.name.toLowerCase().includes(text) &&
-                item?.price.slice(1).replace('.', '').includes(price.replace('.', ''))
+        fetchData(wineType)
+    }, [])
+    useEffect(() => {
+        fetchData(wineType)
+    },[wineType])
+    const filterWines = (data, nameSearch) => {
+        return data.filter(wine => {
+            return wine?.wine?.toLowerCase().includes(nameSearch)
         })
     }
-
-    console.table(price)
-    return (<div className="App">
-        <h1>Together Assessment</h1>
-        <div>filter by name:</div>
-        <input value={name} onChange={e => setName(e.target.value.toLowerCase())}/>
-        <div>filter by price</div>
-        <input type='number' value={price} onChange={e => setPrice(e.target.value)}/>
-        {beers && filterBeers(beers, name).map(({price, name, image, id}) => (
-            <Beer key={id} price={price} name={name} image={image}/>))}
-    </div>);
+    // console.log(wines && wines[0])
+    const wineTypesList = ['reds', 'whites', 'sparkling', 'rose', 'dessert', 'port']
+    return (
+        <div className='App'>
+            <h1>wines with choices</h1>
+            <form>
+                <label>
+                    Search by Name:
+                    <input type="text" value={nameSearch} onChange={e => setNameSearch(e.target.value.toLowerCase())} />
+                </label>
+            </form>
+            <h2>selected wine: {wineType}</h2>
+            {
+                wineTypesList.map(type => (
+                    <button key={type} onClick={() => setWineType(type)}>{type}</button>
+                ))
+            }
+            {
+                wines ? filterWines(wines, nameSearch).map(({winery, wine, rating, location, image, id}) => (
+                    <Wine key={id} winery={winery} wine={wine} average={rating.average} reviews={rating.reviews}
+                          location={location} image={image}/>
+                ))
+                : <div>Loading...</div>
+            }
+        </div>
+    )
 }
 
 export default App;
