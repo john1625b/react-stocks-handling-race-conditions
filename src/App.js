@@ -1,27 +1,59 @@
 import './App.css';
-import {useEffect, useState, useCallback, memo} from "react";
+import {useEffect, useState} from "react";
 
-const User = ({email, first_name, last_name, avatar}) => {
+const Stock = ({description, symbol}) => {
     return (
-        <div>{email}</div>
+        <div className='item'>
+            <div>symbol: {symbol && symbol}</div>
+            <div>description: {description && description}</div>
+        </div>
     )
 }
 
 function App() {
-    const [users, setUsers] = useState([])
-    const fetchData = async () => {
-        let res = await fetchData('https://reqres.in/api/users?page=2')
-        res = await res.json()
-        setUsers(res.data)
-    }
+    const [stocks, setStocks] = useState(null)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [tooManyRequestsMessage, setTooManyRequestsMessage] = useState(false)
+
+    useEffect(() => {
+        const abortController = new AbortController()
+        if (searchTerm) {
+            const fetchData = async (symbol) => {
+                const url = `https://us-central1-eng-interview.cloudfunctions.net/stock-api-proxy?q=${symbol}`
+                console.log('url', url)
+                let res = await fetch(url, abortController.signal)
+                if (!res.ok) {
+                    throw Error(res.statusText)
+                }
+                res = await res.json()
+                if (abortController.signal.aborted) {
+                    return
+                }
+                setStocks(res)
+            }
+            fetchData(searchTerm).catch(e => {
+                console.log('error in stock fetch',)
+                setTooManyRequestsMessage(true)
+                setTimeout(() => {
+                    setTooManyRequestsMessage(false)
+                }, 1000)
+            })
+        }
+        return () => {
+            abortController.abort()
+        }
+    }, [searchTerm])
     return (
         <div className='App'>
-            <h1>Users</h1>
+            <h1>Hello World</h1>
+            <input type='text' value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
+            <div>{tooManyRequestsMessage && 'You querying too much'}</div>
             {
-                users ? users.map(({id, email, first_name, last_name, avatar}) => (
-                    <User key={id} email={email}/>
+                searchTerm ?
+                    stocks && stocks.result && stocks.result.map(({description, symbol}) => (
+                        <Stock key={symbol} description={description} symbol={symbol}/>
                     ))
-                    : <div>Loading...</div>
+                    : <div>no results, search to find stocks</div>
             }
         </div>
     )
